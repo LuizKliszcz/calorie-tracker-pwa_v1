@@ -6,20 +6,25 @@ on:
 jobs:
   apply-patch:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GPT_PATCH_TOKEN }}
 
       - name: Configure Git
         run: |
           git config --global user.name "ChatGPT Automation"
           git config --global user.email "automation@example.com"
 
-      - name: Apply patch
+      - name: Apply Vercel + Vite Patch
         run: |
-          echo "Applying Vercel + Vite correction patch..."
+          echo "Applying patch..."
 
-          # Reescrever package.json com configuração correta
           cat > package.json << 'EOF'
 {
   "name": "calorie-tracker-pwa",
@@ -40,7 +45,6 @@ jobs:
 }
 EOF
 
-          # Reescrever vercel.json com configuração correta
           cat > vercel.json << 'EOF'
 {
   "version": 2,
@@ -56,9 +60,9 @@ EOF
           echo "Patch applied."
 
       - name: Commit and Push changes
-        run: |
-          git add package.json vercel.json
-          git commit -m "Automated patch: Fix Vercel + Vite build configuration" || echo "No changes to commit"
-          git push
         env:
           GITHUB_TOKEN: ${{ secrets.GPT_PATCH_TOKEN }}
+        run: |
+          git add package.json vercel.json
+          git commit -m "Automated patch: Fix Vercel + Vite build configuration" || echo "Nothing to commit"
+          git push
