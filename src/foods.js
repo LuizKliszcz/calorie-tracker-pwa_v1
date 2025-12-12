@@ -643,10 +643,10 @@ export const FOODS = [
 // ---------------------------
 // BARRAS PROTEICAS
 // ---------------------------
-{ name: "Protein Bar — Integral Médica", portion: 40, unit: "g", kcal: 150, carbs: 12, protein: 15, fat: 5 },
-{ name: "Protein Bar — Max Titanium", portion: 40, unit: "g", kcal: 165, carbs: 14, protein: 16, fat: 6 },
-{ name: "DUX — Barrinha Proteica", portion: 40, unit: "g", kcal: 170, carbs: 14, protein: 17, fat: 6 },
-{ name: "Bold Bar — Chocolate", portion: 60, unit: "g", kcal: 240, carbs: 23, protein: 20, fat: 8 },
+{ name: "Protein Bar - Integral Médica", portion: 40, unit: "g", kcal: 150, carbs: 12, protein: 15, fat: 5 },
+{ name: "Protein Bar - Max Titanium", portion: 40, unit: "g", kcal: 165, carbs: 14, protein: 16, fat: 6 },
+{ name: "DUX - Barrinha Proteica", portion: 40, unit: "g", kcal: 170, carbs: 14, protein: 17, fat: 6 },
+{ name: "Bold Bar - Chocolate", portion: 60, unit: "g", kcal: 240, carbs: 23, protein: 20, fat: 8 },
 
 // ---------------------------
 // PASTA DE AMENDOIM (PROTEICA)
