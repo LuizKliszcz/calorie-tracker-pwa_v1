@@ -498,7 +498,7 @@ export const FOODS = [
 
 // ---------------------------
 // YOKI (PRODUTOS)
-–---------------------------
+//–---------------------------
 { name: "Yoki — Farofa Tradicional", portion: 20, unit: "g", kcal: 90, carbs: 15, protein: 1, fat: 3 },
 { name: "Yoki — Pipoca de Micro-ondas Manteiga", portion: 25, unit: "g", kcal: 120, carbs: 12, protein: 2, fat: 7 },
 { name: "Yoki — Tapioca", portion: 50, unit: "g", kcal: 160, carbs: 40, protein: 0.4, fat: 0.1 },
