@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { FOODS } from "./foods"; // keep your foods.js in src/
+import { FOODS } from "./foods"; // mantém seu foods.js em src/
 
-// Simple friendly SVG icons (inline)
+/* ---------- Helper icons (inline) ---------- */
 function IconSearch() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -18,17 +18,56 @@ function IconPlus() {
   );
 }
 
-// format date small
+/* ---------- Utility: format time ---------- */
 function fmtDate(d) {
   return new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+/* ---------- BMR & TDEE calculation functions ---------- */
+function calcBMR({ sex, weightKg, heightCm, age }) {
+  // Mifflin-St Jeor
+  if (!weightKg || !heightCm || !age) return 0;
+  if (sex === "male") {
+    return (10 * weightKg) + (6.25 * heightCm) - (5 * age) + 5;
+  } else {
+    return (10 * weightKg) + (6.25 * heightCm) - (5 * age) - 161;
+  }
+}
+const ACTIVITY_FACTORS = {
+  sedentary: 1.2,
+  light: 1.375,
+  moderate: 1.55,
+  very: 1.725,
+  extra: 1.9
+};
+function calcTDEE(bmr, activityKey) {
+  const f = ACTIVITY_FACTORS[activityKey] || 1.2;
+  return Math.round(bmr * f);
+}
+
+/* ---------- MAIN APP ---------- */
 export default function App() {
+  // ---------- APP DATA: items ----------
   const [items, setItems] = useState(() => {
     try { return JSON.parse(localStorage.getItem("cal_items") || "[]"); }
     catch { return []; }
   });
 
+  // ---------- PROFILE (saved in localStorage) ----------
+  const [profile, setProfile] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("user_profile") || "null"); }
+    catch { return null; }
+  });
+
+  // If profile has tdee -> default dailyTarget, otherwise fallback 2500
+  const [dailyTarget, setDailyTarget] = useState(() => {
+    try {
+      const p = JSON.parse(localStorage.getItem("user_profile") || "null");
+      return p && p.tdee ? Number(p.tdee) : 2500;
+    } catch { return 2500; }
+  });
+
+  // ---------- INPUTS for food ----------
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [selectedFood, setSelectedFood] = useState(null);
@@ -41,7 +80,7 @@ export default function App() {
 
   useEffect(() => localStorage.setItem("cal_items", JSON.stringify(items)), [items]);
 
-  // totals
+  // ---------- totals ----------
   const totals = useMemo(() => {
     const t = items.reduce((s, it) => {
       s.k += Number(it.kcal || 0);
@@ -53,7 +92,7 @@ export default function App() {
     return { kcal: Math.round(t.k), carbs: +t.c.toFixed(1), protein: +t.p.toFixed(1), fat: +t.f.toFixed(1) };
   }, [items]);
 
-  // suggestions (simple)
+  // ---------- suggestions ----------
   useEffect(() => {
     if (!query || query.length < 2) { setSuggestions([]); return; }
     const q = query.toLowerCase();
@@ -107,11 +146,68 @@ export default function App() {
     setItems(prev => prev.filter(i => i.id !== id));
   }
 
-  const DAILY_TARGET = 2500;
-  const progress = Math.min(1, totals.kcal / DAILY_TARGET);
+  // ---------- PROFILE FORM state (local inputs) ----------
+  const [sex, setSex] = useState(profile?.sex || "male");
+  const [weight, setWeight] = useState(profile?.weightKg ? String(profile.weightKg) : "");
+  const [height, setHeight] = useState(profile?.heightCm ? String(profile.heightCm) : "");
+  const [age, setAge] = useState(profile?.age ? String(profile.age) : "");
+  const [activity, setActivity] = useState(profile?.activity || "sedentary");
+  const [computedBMR, setComputedBMR] = useState(profile?.bmr || 0);
+  const [computedTDEE, setComputedTDEE] = useState(profile?.tdee || 0);
+
+  // compute & save profile
+  function computeProfileAndSave() {
+    const weightKg = parseFloat(weight);
+    const heightCm = parseFloat(height);
+    const ageNum = parseInt(age, 10);
+
+    if (!weightKg || !heightCm || !ageNum) {
+      alert("Preencha peso, altura e idade corretamente.");
+      return;
+    }
+
+    const bmr = Math.round(calcBMR({ sex, weightKg, heightCm, age: ageNum }));
+    const tdee = calcTDEE(bmr, activity);
+
+    const newProfile = {
+      sex, weightKg, heightCm, age: ageNum, activity, bmr, tdee, updatedAt: new Date().toISOString()
+    };
+
+    setProfile(newProfile);
+    localStorage.setItem("user_profile", JSON.stringify(newProfile));
+    setComputedBMR(bmr);
+    setComputedTDEE(tdee);
+
+    // update app daily target automatically to TDEE
+    setDailyTarget(tdee);
+    // save daily target separately as convenience
+    localStorage.setItem("daily_target", String(tdee));
+  }
+
+  // load dailyTarget from localStorage when app mounts
+  useEffect(() => {
+    try {
+      const dt = localStorage.getItem("daily_target");
+      if (dt) setDailyTarget(Number(dt));
+    } catch {}
+  }, []);
+
+  // progress relative to dailyTarget
+  const progress = Math.min(1, totals.kcal / (dailyTarget || 1));
+
+  // quick reset profile
+  function clearProfile() {
+    setProfile(null);
+    localStorage.removeItem("user_profile");
+    setSex("male"); setWeight(""); setHeight(""); setAge(""); setActivity("sedentary");
+    setComputedBMR(0); setComputedTDEE(0);
+    setDailyTarget(2500);
+    localStorage.removeItem("daily_target");
+  }
 
   return (
     <div className="ft-app">
+      {/* ---------- HEADER + PROFILE (top) ---------- */}
       <header className="ft-header">
         <div className="ft-brand">
           <div className="ft-logo">🔥</div>
@@ -124,16 +220,57 @@ export default function App() {
         <div className="ft-stats">
           <div className="stat">
             <div className="stat-num">{totals.kcal}</div>
-            <div className="muted">kcal</div>
+            <div className="muted">consumidas</div>
           </div>
           <div className="stat small">
             <div className="muted">Meta</div>
-            <div>{DAILY_TARGET} kcal</div>
+            <div>{dailyTarget} kcal</div>
           </div>
         </div>
       </header>
 
+      {/* ---------- PROFILE CARD (top, option B) ---------- */}
+      <div style={{ maxWidth: 1100, margin: "12px auto" }}>
+        <div className="card" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ minWidth: 220 }}>
+            <div style={{ fontWeight: 800 }}>Seu Perfil Metabólico</div>
+            <div className="muted" style={{ fontSize: 13 }}>Calcule BMR & TDEE (meta diária)</div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", flex: 1 }}>
+            <select className="select" value={sex} onChange={e => setSex(e.target.value)} style={{ width: 140 }}>
+              <option value="male">Masculino</option>
+              <option value="female">Feminino</option>
+            </select>
+
+            <input className="small" placeholder="Peso (kg)" value={weight} onChange={e => setWeight(e.target.value.replace(/[^\d.]/g, ""))} />
+            <input className="small" placeholder="Altura (cm)" value={height} onChange={e => setHeight(e.target.value.replace(/[^\d.]/g, ""))} />
+            <input className="small" placeholder="Idade" value={age} onChange={e => setAge(e.target.value.replace(/[^\d]/g, ""))} />
+
+            <select className="select" value={activity} onChange={e => setActivity(e.target.value)} style={{ width: 190 }}>
+              <option value="sedentary">Sedentário (pouco exercício)</option>
+              <option value="light">Levemente ativo (1–3x/sem)</option>
+              <option value="moderate">Moderadamente ativo (3–5x/sem)</option>
+              <option value="very">Muito ativo (6–7x/sem)</option>
+              <option value="extra">Extremamente ativo / atleta</option>
+            </select>
+
+            <button className="btn primary" onClick={computeProfileAndSave} title="Calcular BMR & TDEE">Calcular</button>
+            <button className="btn ghost" onClick={clearProfile}>Limpar</button>
+          </div>
+
+          <div style={{ minWidth: 240, textAlign: "right" }}>
+            <div style={{ fontSize: 12, color: "var(--muted)" }}>Gasto Basal (BMR)</div>
+            <div style={{ fontWeight: 800, fontSize: 20 }}>{computedBMR || "—"} kcal</div>
+            <div style={{ marginTop: 6, fontSize: 12, color: "var(--muted)" }}>TDEE (meta diária estimada)</div>
+            <div style={{ fontWeight: 800, fontSize: 20 }}>{computedTDEE || "—"} kcal</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ---------- MAIN LAYOUT ---------- */}
       <main className="ft-container">
+        {/* LEFT: inputs & recent entries */}
         <section className="left-col">
           <div className="card">
             <div className="card-row">
@@ -219,6 +356,7 @@ export default function App() {
           </div>
         </section>
 
+        {/* RIGHT: summary & quick actions */}
         <aside className="right-col">
           <div className="card">
             <h3>Resumo do dia</h3>
@@ -229,15 +367,22 @@ export default function App() {
               <div className="summary-row"><div>Gorduras</div><div className="bold">{totals.fat} g</div></div>
             </div>
             <div className="spacer" />
-            <div className="meta muted">Meta diária: {DAILY_TARGET} kcal</div>
+            <div className="meta muted">Meta diária: {dailyTarget} kcal</div>
           </div>
 
           <div className="card mt16">
             <h3>Quick Actions</h3>
             <div className="qa-grid">
-              <button className="btn">Adicionar Refeição</button>
-              <button className="btn">Exportar CSV</button>
-              <button className="btn">Limpar Hoje</button>
+              <button className="btn" onClick={() => { navigator.clipboard && navigator.clipboard.writeText(JSON.stringify(items)); alert("Copiado JSON para clipboard"); }}>Exportar JSON</button>
+              <button className="btn" onClick={() => {
+                const rows = [["time","meal","name","grams","kcal","carbs","protein","fat"], ...items.map(i => [i.time,i.meal,i.name,i.grams,i.kcal,i.carbs,i.protein,i.fat])];
+                const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\\n");
+                const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = 'calorie_export.csv'; a.click();
+                URL.revokeObjectURL(url);
+              }}>Exportar CSV</button>
+              <button className="btn" onClick={() => { if(confirm("Limpar todas as entradas?")) { setItems([]); } }}>Limpar Hoje</button>
             </div>
           </div>
         </aside>
