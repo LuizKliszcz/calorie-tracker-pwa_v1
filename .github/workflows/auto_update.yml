@@ -1,35 +1,33 @@
-name: Auto Update App
+name: Auto Update ChatGPT
 
 on:
   workflow_dispatch:
     inputs:
-      patch:
-        description: "Conteúdo do patch (tar.gz base64)"
+      file:
+        description: "Patch ZIP em Base64"
         required: true
 
 jobs:
-  apply_patch:
+  update:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout repo
+
+    - name: Checkout code
       uses: actions/checkout@v3
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Decode patch
+    - name: Decode Base64 safely
       run: |
-        echo "${{ github.event.inputs.patch }}" | base64 --decode > patch.tar.gz
+        printf "%s" "${{ github.event.inputs.file }}" | base64 --decode > update.zip
 
-    - name: Extract patch
-      run: |
-        tar -xzf patch.tar.gz -C .
-        rm patch.tar.gz
+    - name: Extract ZIP
+      run: unzip -o update.zip -d .
 
-    - name: Commit & Push
+    - name: Commit and Push changes
       run: |
         git config user.name "chatgpt-bot"
         git config user.email "actions@github.com"
         git add .
-        git commit -m "Auto-update via ChatGPT patch"
-        git push origin main
+        git commit -m "Auto update via ChatGPT"
+        git push
