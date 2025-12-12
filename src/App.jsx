@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { FOODS } from './foods'
 
 function formatDate(dateString) {
   return new Date(dateString).toLocaleString()
@@ -20,6 +21,9 @@ export default function App() {
   const [toast, setToast] = useState(null)
   const [todayFilter, setTodayFilter] = useState(true)
 
+  // autocomplete
+  const [suggestions, setSuggestions] = useState([])
+
   useEffect(() => {
     localStorage.setItem("cal_items", JSON.stringify(items))
   }, [items])
@@ -33,7 +37,33 @@ export default function App() {
 
   const totalKcal = items.reduce((sum, item) => sum + Number(item.kcal), 0)
 
-  const showToast = (msg) => setToast(msg)
+  function showToast(msg) {
+    setToast(msg)
+  }
+
+  function handleNameChange(e) {
+    const value = e.target.value
+    setName(value)
+
+    if (value.length < 2) {
+      setSuggestions([])
+      return
+    }
+
+    const filtered = FOODS.filter(f =>
+      f.name.toLowerCase().includes(value.toLowerCase())
+    )
+
+    setSuggestions(filtered.slice(0, 5))
+  }
+
+  function selectFood(food) {
+    setName(food.name)
+    setKcal(food.kcal)
+    setPortion(food.portion)
+    setSuggestions([])
+    showToast(`Calorias preenchidas: ${food.kcal} kcal`)
+  }
 
   function addItem() {
     if (!name || !kcal) {
@@ -59,8 +89,7 @@ export default function App() {
 
   function removeItem(id) {
     if (!confirm("Remover este item?")) return
-
-    setItems(items.filter((i) => i.id !== id))
+    setItems(items.filter(i => i.id !== id))
     showToast("Removido.")
   }
 
@@ -70,20 +99,19 @@ export default function App() {
     const start = new Date()
     start.setHours(0, 0, 0, 0)
 
-    const filtered = items.filter(
-      (i) => new Date(i.time).getTime() < start.getTime()
-    )
+    setItems(items.filter(i =>
+      new Date(i.time).getTime() < start.getTime()
+    ))
 
-    setItems(filtered)
     showToast("Entradas de hoje apagadas.")
   }
 
   const filteredItems = todayFilter
-    ? items.filter((i) => {
-        const start = new Date()
-        start.setHours(0, 0, 0, 0)
-        return new Date(i.time).getTime() >= start.getTime()
-      })
+    ? items.filter(i => {
+      const start = new Date()
+      start.setHours(0, 0, 0, 0)
+      return new Date(i.time).getTime() >= start.getTime()
+    })
     : items
 
   return (
@@ -102,12 +130,30 @@ export default function App() {
       </header>
 
       <section className="card input-card">
-        <div className="row">
-          <input
-            placeholder="Alimento"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
+        <div className="row autocomplete-container">
+
+          <div className="input-wrapper">
+            <input
+              placeholder="Alimento"
+              value={name}
+              onChange={handleNameChange}
+            />
+
+            {suggestions.length > 0 && (
+              <div className="suggestions">
+                {suggestions.map((food, index) => (
+                  <div
+                    key={index}
+                    className="suggestion"
+                    onClick={() => selectFood(food)}
+                  >
+                    {food.name} — {food.kcal} kcal
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <input
             placeholder="kcal"
             value={kcal}
@@ -150,15 +196,14 @@ export default function App() {
           <p className="empty">Nenhum registro.</p>
         )}
 
-        {filteredItems.map((it) => (
+        {filteredItems.map(it => (
           <div className="entry" key={it.id}>
             <div>
               <div className="food">
                 {it.name}
-                {it.portion && (
-                  <span className="portion"> ({it.portion})</span>
-                )}
+                {it.portion && <span className="portion"> ({it.portion})</span>}
               </div>
+
               <div className="meta">
                 {it.meal} • {formatDate(it.time)}
               </div>
@@ -166,9 +211,7 @@ export default function App() {
 
             <div className="right">
               <div className="kcal">{it.kcal} kcal</div>
-              <button className="btn small danger" onClick={() => removeItem(it.id)}>
-                Remover
-              </button>
+              <button className="btn small danger" onClick={() => removeItem(it.id)}>Remover</button>
             </div>
           </div>
         ))}
