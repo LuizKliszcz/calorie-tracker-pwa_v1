@@ -1,0 +1,68 @@
+name: Apply Patch to Repository
+
+on:
+  workflow_dispatch:
+
+jobs:
+  apply-patch:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GPT_PATCH_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "ChatGPT Automation"
+          git config --global user.email "automation@example.com"
+
+      - name: Apply Vercel + Vite Patch
+        run: |
+          echo "Applying patch..."
+
+          cat > package.json << 'EOF'
+{
+  "name": "calorie-tracker-pwa",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
+EOF
+
+          cat > vercel.json << 'EOF'
+{
+  "version": 2,
+  "builds": [
+    { "src": "package.json", "use": "@vercel/static-build" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/server.js" }
+  ]
+}
+EOF
+
+          echo "Patch applied."
+
+      - name: Commit and Push changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GPT_PATCH_TOKEN }}
+        run: |
+          git add package.json vercel.json
+          git commit -m "Automated patch: Fix Vercel + Vite build configuration" || echo "Nothing to commit"
+          git push
