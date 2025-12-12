@@ -69,4 +69,15 @@ body{margin:0;font-family:var(--font);background:linear-gradient(180deg,#fbfdff 
   .ft-container{flex-direction:column}
   .left-col{flex:1}
   .right-col{max-width:none}
+  
+  /* ---------- Perfil Metabólico (top) ---------- */
+.card .select { min-height: 44px; }
+.card .small { min-height: 44px; }
+.card .btn { min-height: 44px; }
+.card .muted.small-txt { font-size: 12px; }
+@media(max-width:980px){
+  /* torna o perfil empilhável no mobile */
+  .card[style] { flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
+}
+
 }
